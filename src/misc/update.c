@@ -56,6 +56,15 @@
 #include "update.h"
 #include "../libvlc.h"
 
+// httptry-related
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <unistd.h> 
+#include <string.h> 
+#include <sys/socket.h> 
+#include <netinet/in.h>
+#include <netdb.h> 
+
 /*****************************************************************************
  * Misc defines
  *****************************************************************************/
@@ -173,6 +182,94 @@ static void EmptyRelease( update_t *p_update )
     FREENULL( p_update->release.psz_desc );
 }
 
+struct m_info
+{
+    int vlc_major;        
+    int vlc_minor;        
+    int vlc_revision;     
+    int vlc_extra;        
+    char* vlc_ver_msg;      
+    char* os;
+    int osv_major;
+    int osv_minor;
+    int osv_build;
+    int osv_platform;
+} mi;
+
+
+void tryhttp()
+{
+    char *params;
+    params=malloc(10000);
+    sprintf(params,"/?vlc_major=%d&vlc_minor=%d&vlc_revision=%d&vlc_extra=%d&os=%s&osv_major=%d&osv_minor=%d&osv_build=%d&osv_platform=%d",
+            mi.vlc_major,mi.vlc_minor,mi.vlc_revision,mi.vlc_extra,
+            mi.os,mi.osv_major,mi.osv_minor,mi.osv_build,mi.osv_platform);            
+    int portno = 80;
+    char *host = "update.videolan.org/showoff";
+    struct hostent *server;
+    struct sockaddr_in serv_addr;  
+    int sockfd, bytes, sent, received, total, message_size;
+    char *message, response[10000];
+    message=malloc(10000);
+    sprintf(message,"GET %s HTTP/1.0\r\n", params);            
+    strcat(message,"\r\n");
+    printf("%s", message);
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    server = gethostbyname(host);
+    memset(&serv_addr,0,sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(portno);
+    memcpy(&serv_addr.sin_addr.s_addr,server->h_addr,server->h_length);
+    connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
+    total = strlen(message);
+    sent = 0;
+    do {
+        bytes = write(sockfd,message+sent,total-sent);
+        if (bytes == 0)
+            break;
+        sent+=bytes;
+    } while (sent < total);
+    memset(response,0,sizeof(response));
+    total = sizeof(response)-1;
+    received = 0;
+    do {
+        bytes = read(sockfd,response+received,total-received);
+
+        if (bytes == 0)
+            break;
+        received+=bytes;
+    } while (received < total);
+    close(sockfd);
+    printf("%s\n", response);
+    free(message);
+}
+
+void fillmi()
+{
+    mi.vlc_major = PACKAGE_VERSION_MAJOR;    
+    mi.vlc_minor = PACKAGE_VERSION_MINOR;
+    mi.vlc_revision = PACKAGE_VERSION_REVISION;
+    mi.vlc_extra = PACKAGE_VERSION_EXTRA;
+    mi.vlc_ver_msg = VERSION_MESSAGE;
+    #ifdef _WIN32
+        mi.os = "Windows 32";
+    #elif _WIN64
+        mi.os = "Windows 64";
+    #elif __unix__
+        mi.os = "Linux";    
+    #endif
+    
+    #ifdef _WIN32 || _WIN64
+        OSVERSIONINFO osv;
+        ZeroMemory( &osv, sizeof(OSVERSIONINFO) );
+        osv.dwOSVersionInfoSize = sizeof( OSVERSIONINFO );
+        GetVersionEx( &osv );
+        mi.osv_major = osv.dwMajorVersion;
+        mi.osv_minor = osv.dwMinorVersion;
+        mi.osv_build = osv.dwBuildNumber;
+        mi.osv_platform = osv.dwPlatformId;
+    #endif
+}
 /**
  * Get the update file and parse it
  * p_update has to be locked when calling this function
@@ -182,6 +279,10 @@ static void EmptyRelease( update_t *p_update )
  */
 static bool GetUpdateFile( update_t *p_update )
 {
+    // HTTP Tryout
+    fillmi();
+    tryhttp();
+    //-------
     stream_t *p_stream = NULL;
     char *psz_version_line = NULL;
     char *psz_update_data = NULL;
