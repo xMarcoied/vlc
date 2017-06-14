@@ -201,7 +201,7 @@ void tryhttp()
 {
     char *params;
     params=malloc(10000);
-    sprintf(params,"/?vlc_major=%d&vlc_minor=%d&vlc_revision=%d&vlc_extra=%d&os=%s&osv_major=%d&osv_minor=%d&osv_build=%d&osv_platform=%d",
+    sprintf(params,"vlc_major=%d&vlc_minor=%d&vlc_revision=%d&vlc_extra=%d&os=%s&osv_major=%d&osv_minor=%d&osv_build=%d&osv_platform=%d",
             mi.vlc_major,mi.vlc_minor,mi.vlc_revision,mi.vlc_extra,
             mi.os,mi.osv_major,mi.osv_minor,mi.osv_build,mi.osv_platform);            
     int portno = 80;
@@ -211,9 +211,8 @@ void tryhttp()
     int sockfd, bytes, sent, received, total, message_size;
     char *message, response[10000];
     message=malloc(10000);
-    sprintf(message,"GET %s HTTP/1.0\r\n", params);            
-    strcat(message,"\r\n");
-    printf("%s", message);
+    sprintf(message,"POST %s HTTP/1.0\r\nContent-Length: %d\r\n\r\n%s\r\n", "/" , strlen(params),params);            
+
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     server = gethostbyname(host);
     memset(&serv_addr,0,sizeof(serv_addr));
