@@ -184,26 +184,17 @@ static void EmptyRelease( update_t *p_update )
 
 struct m_info
 {
-    int vlc_major;        
-    int vlc_minor;        
-    int vlc_revision;     
-    int vlc_extra;        
-    char* vlc_ver_msg;      
-    char* os;
-    int osv_major;
-    int osv_minor;
-    int osv_build;
-    int osv_platform;
+	char* os;
+	char* os_ver; 
+	char* os_arch;
+	char* vlc_ver;
 } mi;
 
 
 void tryhttp()
 {
-    char *params;
-    params=malloc(10000);
-    sprintf(params,"vlc_major=%d&vlc_minor=%d&vlc_revision=%d&vlc_extra=%d&os=%s&osv_major=%d&osv_minor=%d&osv_build=%d&osv_platform=%d",
-            mi.vlc_major,mi.vlc_minor,mi.vlc_revision,mi.vlc_extra,
-            mi.os,mi.osv_major,mi.osv_minor,mi.osv_build,mi.osv_platform);            
+    char *params = malloc(10000);
+    sprintf(params,"vlc_ver=%s&os=%s&os_arch=%s&os_ver=%s",mi.vlc_ver,mi.os,mi.os_arch,mi.os_ver);
     int portno = 80;
     char *host = "update.videolan.org/showoff";
     struct hostent *server;
@@ -245,17 +236,19 @@ void tryhttp()
 
 void fillmi()
 {
-    mi.vlc_major = PACKAGE_VERSION_MAJOR;    
-    mi.vlc_minor = PACKAGE_VERSION_MINOR;
-    mi.vlc_revision = PACKAGE_VERSION_REVISION;
-    mi.vlc_extra = PACKAGE_VERSION_EXTRA;
-    mi.vlc_ver_msg = VERSION_MESSAGE;
+	char* s_buf = malloc(10000);
+    sprintf(s_buf,"%d.%d.%d.%d",PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA);
+    mi.vlc_ver = s_buf;
     #ifdef _WIN32
-        mi.os = "Windows 32";
+        mi.os = "Windows";
+        mi.os_arch = "32";
     #elif _WIN64
-        mi.os = "Windows 64";
+        mi.os = "Windows";
+        mi.os_arch = "64";
     #elif __unix__
-        mi.os = "Linux";    
+        mi.os = "Linux";
+        mi.os_arch = "Linux";    
+        mi.os_ver = "Linux";
     #endif
     
     #ifdef _WIN32 || _WIN64
@@ -263,11 +256,14 @@ void fillmi()
         ZeroMemory( &osv, sizeof(OSVERSIONINFO) );
         osv.dwOSVersionInfoSize = sizeof( OSVERSIONINFO );
         GetVersionEx( &osv );
-        mi.osv_major = osv.dwMajorVersion;
-        mi.osv_minor = osv.dwMinorVersion;
-        mi.osv_build = osv.dwBuildNumber;
-        mi.osv_platform = osv.dwPlatformId;
+        int osv_x = osv.dwMajorVersion;
+        int osv_y = osv.dwMinorVersion;
+        int osv_z = osv.dwBuildNumber;
+        int osv_o = osv.dwPlatformId;
+    	sprintf(s_buf, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o);
+    	mi.os_ver = s_buf;
     #endif
+
 }
 /**
  * Get the update file and parse it
