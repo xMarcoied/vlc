@@ -191,53 +191,10 @@ struct m_info
 } mi;
 
 
-void tryhttp()
-{
-    char *params = malloc(10000);
-    sprintf(params,"vlc_ver=%s&os=%s&os_arch=%s&os_ver=%s",mi.vlc_ver,mi.os,mi.os_arch,mi.os_ver);
-    int portno = 80;
-    char *host = "update.videolan.org/showoff";
-    struct hostent *server;
-    struct sockaddr_in serv_addr;  
-    int sockfd, bytes, sent, received, total, message_size;
-    char *message, response[10000];
-    message=malloc(10000);
-    sprintf(message,"POST %s HTTP/1.0\r\nContent-Length: %d\r\n\r\n%s\r\n", "/" , strlen(params),params);            
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    server = gethostbyname(host);
-    memset(&serv_addr,0,sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(portno);
-    memcpy(&serv_addr.sin_addr.s_addr,server->h_addr,server->h_length);
-    connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
-    total = strlen(message);
-    sent = 0;
-    do {
-        bytes = write(sockfd,message+sent,total-sent);
-        if (bytes == 0)
-            break;
-        sent+=bytes;
-    } while (sent < total);
-    memset(response,0,sizeof(response));
-    total = sizeof(response)-1;
-    received = 0;
-    do {
-        bytes = read(sockfd,response+received,total-received);
-
-        if (bytes == 0)
-            break;
-        received+=bytes;
-    } while (received < total);
-    close(sockfd);
-    printf("%s\n", response);
-    free(message);
-}
-
 void fillmi()
 {
-	char* s_buf = malloc(10000);
-    sprintf(s_buf,"%d.%d.%d.%d",PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA);
+	char* s_buf;
+    asprintf(&s_buf,"%d.%d.%d.%d",PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA);
     mi.vlc_ver = s_buf;
     #ifdef _WIN32
         mi.os = "Windows";
@@ -245,6 +202,7 @@ void fillmi()
     #elif _WIN64
         mi.os = "Windows";
         mi.os_arch = "64";
+    //FIXME : detect the real linux arch;
     #elif __unix__
         mi.os = "Linux";
         mi.os_arch = "Linux";    
@@ -260,7 +218,7 @@ void fillmi()
         int osv_y = osv.dwMinorVersion;
         int osv_z = osv.dwBuildNumber;
         int osv_o = osv.dwPlatformId;
-    	sprintf(s_buf, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o);
+    	asprintf(&s_buf, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o);
     	mi.os_ver = s_buf;
     #endif
 
@@ -274,15 +232,14 @@ void fillmi()
  */
 static bool GetUpdateFile( update_t *p_update )
 {
-    // HTTP Tryout
-    fillmi();
-    tryhttp();
-    //-------
+
     stream_t *p_stream = NULL;
     char *psz_version_line = NULL;
     char *psz_update_data = NULL;
 
-    p_stream = vlc_stream_NewURL( p_update->p_libvlc, UPDATE_VLC_STATUS_URL );
+    char *s_update_url;
+    asprintf(&s_update_url , "http://update.videolan.org/vlc/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver);
+    p_stream = vlc_stream_NewURL( p_update->p_libvlc, s_update_url );
     if( !p_stream )
     {
         msg_Err( p_update->p_libvlc, "Failed to open %s for reading",
