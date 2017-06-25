@@ -191,18 +191,18 @@ struct m_info
 } mi;
 
 
-void fillmi()
+bool fillmi()
 {
-	char* s_buf;
-    asprintf(&s_buf,"%d.%d.%d.%d",PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA);
-    mi.vlc_ver = s_buf;
+    if(asprintf(&mi.vlc_ver,"%d.%d.%d.%d",PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA)==-1)
+    {
+        return false;
+    }
     #ifdef _WIN32
         mi.os = "Windows";
         mi.os_arch = "32";
     #elif _WIN64
         mi.os = "Windows";
         mi.os_arch = "64";
-    //FIXME : detect the real linux arch;
     #elif __unix__
         mi.os = "Linux";
         mi.os_arch = "Linux";    
@@ -218,10 +218,12 @@ void fillmi()
         int osv_y = osv.dwMinorVersion;
         int osv_z = osv.dwBuildNumber;
         int osv_o = osv.dwPlatformId;
-    	asprintf(&s_buf, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o);
-    	mi.os_ver = s_buf;
+    	if(asprintf(&mi.os_ver, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o)==-1)
+        {
+            return false;
+        }
     #endif
-
+    return true;
 }
 /**
  * Get the update file and parse it
@@ -237,13 +239,22 @@ static bool GetUpdateFile( update_t *p_update )
     char *psz_version_line = NULL;
     char *psz_update_data = NULL;
 
-    char *s_update_url;
-    asprintf(&s_update_url , "http://update.videolan.org/vlc/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver);
-    p_stream = vlc_stream_NewURL( p_update->p_libvlc, s_update_url );
+    char *s_url = NULL;
+    if(fillmi() == false)
+    {
+        goto error;
+    }
+    
+    if(asprintf(&s_url , "http://update.videolan.org/vlc/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver) == -1)
+    {
+        goto error;
+    }
+    
+    p_stream = vlc_stream_NewURL( p_update->p_libvlc, s_url );
     if( !p_stream )
     {
         msg_Err( p_update->p_libvlc, "Failed to open %s for reading",
-                 UPDATE_VLC_STATUS_URL );
+                 s_url );
         goto error;
     }
 
@@ -431,6 +442,7 @@ error:
         vlc_stream_Delete( p_stream );
     free( psz_version_line );
     free( psz_update_data );
+    free( s_url );
     return false;
 }
 
