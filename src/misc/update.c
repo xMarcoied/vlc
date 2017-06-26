@@ -2,7 +2,7 @@
  * update.c: VLC update checking and downloading
  *****************************************************************************
  * Copyright © 2005-2008 VLC authors and VideoLAN
- * $Id$
+ * $Id: d8e6ded003fa610c057f9d95ee701ab0856af59b $
  *
  * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
  *          Rémi Duraffort <ivoire at via.ecp.fr>
@@ -56,15 +56,6 @@
 #include "update.h"
 #include "../libvlc.h"
 
-// httptry-related
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <unistd.h> 
-#include <string.h> 
-#include <sys/socket.h> 
-#include <netinet/in.h>
-#include <netdb.h> 
-
 /*****************************************************************************
  * Misc defines
  *****************************************************************************/
@@ -81,6 +72,9 @@
  * Remaining text is a required description of the update
  */
 
+
+#define BUILD_CHANNEL "stable" 
+
 #if defined( _WIN64 )
 # define UPDATE_OS_SUFFIX "-win-x64"
 #elif defined( _WIN32 )
@@ -92,8 +86,10 @@
 #ifndef NDEBUG
 # define UPDATE_VLC_STATUS_URL "http://update-test.videolan.org/vlc/status-win-x86"
 #else
-# define UPDATE_VLC_STATUS_URL "http://update.videolan.org/vlc/status" UPDATE_OS_SUFFIX
+// To be deleted
+# define UPDATE_VLC_STATUS_URL "http://update.videolan.org/vlc/" BUILD_CHANNEL "/status" UPDATE_OS_SUFFIX
 #endif
+
 
 #define dialog_FatalWait( p_obj, psz_title, psz_fmt, ... ) \
     vlc_dialog_wait_question( p_obj, VLC_DIALOG_QUESTION_CRITICAL, "OK", NULL, \
@@ -102,6 +98,15 @@
 /*****************************************************************************
  * Update_t functions
  *****************************************************************************/
+
+struct m_info
+{
+	char* os;
+	char* os_ver; 
+	char* os_arch;
+	char* vlc_ver;
+} mi;
+
 
 #undef update_New
 /**
@@ -182,27 +187,22 @@ static void EmptyRelease( update_t *p_update )
     FREENULL( p_update->release.psz_desc );
 }
 
-struct m_info
-{
-	char* os;
-	char* os_ver; 
-	char* os_arch;
-	char* vlc_ver;
-} mi;
-
-
+//TODO : Integrate mi with update.h structs
 bool fillmi()
 {
-    if(asprintf(&mi.vlc_ver,"%d.%d.%d.%d",PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA)==-1)
+    if( asprintf( &mi.vlc_ver , "%d.%d.%d.%d" , PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA) == -1 )
     {
         return false;
     }
+
     #ifdef _WIN32
         mi.os = "Windows";
         mi.os_arch = "32";
+
     #elif _WIN64
         mi.os = "Windows";
         mi.os_arch = "64";
+
     #elif __unix__
         mi.os = "Linux";
         mi.os_arch = "Linux";    
@@ -218,12 +218,21 @@ bool fillmi()
         int osv_y = osv.dwMinorVersion;
         int osv_z = osv.dwBuildNumber;
         int osv_o = osv.dwPlatformId;
-    	if(asprintf(&mi.os_ver, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o)==-1)
+
+    	if( asprintf( &mi.os_ver, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o ) == -1 )
         {
             return false;
         }
+
     #endif
     return true;
+}
+
+void destroymi(){
+    free( mi.os );
+    free( mi.os_ver );
+    free( mi.os_arch );
+    free( mi.vlc_ver );
 }
 /**
  * Get the update file and parse it
@@ -234,7 +243,6 @@ bool fillmi()
  */
 static bool GetUpdateFile( update_t *p_update )
 {
-
     stream_t *p_stream = NULL;
     char *psz_version_line = NULL;
     char *psz_update_data = NULL;
@@ -242,12 +250,16 @@ static bool GetUpdateFile( update_t *p_update )
     char *s_url = NULL;
     if(fillmi() == false)
     {
-        goto error;
+        mi.os = NULL;
+        mi.os_ver = NULL;
+        mi.os_arch = NULL;
+        mi.vlc_ver = NULL;
     }
-    
-    if(asprintf(&s_url , "http://update.videolan.org/vlc/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver) == -1)
+
+    // TODO : detect clientIP
+    if( asprintf( &s_url , "http://update.videolan.org/vlc/%s/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s&ip=192.168.1.1" , BUILD_CHANNEL , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver ) == -1 )
     {
-        goto error;
+        s_url = NULL;
     }
     
     p_stream = vlc_stream_NewURL( p_update->p_libvlc, s_url );
@@ -434,6 +446,8 @@ static bool GetUpdateFile( update_t *p_update )
         free( p_hash );
         free( psz_version_line );
         free( psz_update_data );
+        free( s_url );
+        destroymi();
         return true;
     }
 
@@ -443,6 +457,7 @@ error:
     free( psz_version_line );
     free( psz_update_data );
     free( s_url );
+    destroymi();
     return false;
 }
 
@@ -654,11 +669,10 @@ static void* update_DownloadReal( void *obj )
         goto end;
 
     msg_Dbg( p_udt, "Downloading Stream '%s'", p_update->release.psz_url );
-
     psz_size = size_str( l_size );
 
     p_dialog_id =
-        vlc_dialog_display_progress( p_udt, false, 0.0, _("Cancel"),
+        vlc_dialog_display_progress( p_udt, false, 0.0, _("Cancello"),
                                      ( "Downloading..."),
                                      _("%s\nDownloading... %s/%s %.1f%% done"),
                                      p_update->release.psz_url, "0.0", psz_size,
