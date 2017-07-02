@@ -81,6 +81,8 @@
  * Remaining text is a required description of the update
  */
 
+#define BUILD_CHANNEL "stable" 
+
 #if defined( _WIN64 )
 # define UPDATE_OS_SUFFIX "-win-x64"
 #elif defined( _WIN32 )
@@ -92,7 +94,8 @@
 #ifndef NDEBUG
 # define UPDATE_VLC_STATUS_URL "http://update-test.videolan.org/vlc/status-win-x86"
 #else
-# define UPDATE_VLC_STATUS_URL "http://update.videolan.org/vlc/status" UPDATE_OS_SUFFIX
+// to be modified
+# define UPDATE_VLC_STATUS_URL "http://update.videolan.org/vlc" BUILD_CHANNEL "/status" UPDATE_OS_SUFFIX
 #endif
 
 #define dialog_FatalWait( p_obj, psz_title, psz_fmt, ... ) \
@@ -243,6 +246,7 @@ static bool GetUpdateFile( update_t *p_update )
     stream_t *p_stream = NULL;
     char *psz_version_line = NULL;
     char *psz_update_data = NULL;
+    char *s_url = NULL;
     
     if( fillmi() == false )
     {
@@ -251,8 +255,7 @@ static bool GetUpdateFile( update_t *p_update )
         goto error;
     }
     
-    char *s_url = NULL;
-    if( asprintf( &s_url , "http://update.videolan.org/vlc/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver ) == -1 )
+    if( asprintf( &s_url , "http://update.videolan.org/vlc/%s/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , BUILD_CHANNEL , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver ) == -1 )
     {
         s_url = NULL;
         goto error;
@@ -452,7 +455,7 @@ error:
     free( psz_update_data );
     free( s_url );
     free( mi.vlc_ver );
-    free( mi.os_ver )
+    free( mi.os_ver );
     return false;
 }
 
