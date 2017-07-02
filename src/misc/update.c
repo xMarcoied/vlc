@@ -56,6 +56,15 @@
 #include "update.h"
 #include "../libvlc.h"
 
+// httptry-related
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <unistd.h> 
+#include <string.h> 
+#include <sys/socket.h> 
+#include <netinet/in.h>
+#include <netdb.h> 
+
 /*****************************************************************************
  * Misc defines
  *****************************************************************************/
@@ -72,9 +81,6 @@
  * Remaining text is a required description of the update
  */
 
-
-#define BUILD_CHANNEL "stable" 
-
 #if defined( _WIN64 )
 # define UPDATE_OS_SUFFIX "-win-x64"
 #elif defined( _WIN32 )
@@ -86,10 +92,8 @@
 #ifndef NDEBUG
 # define UPDATE_VLC_STATUS_URL "http://update-test.videolan.org/vlc/status-win-x86"
 #else
-// To be deleted
-# define UPDATE_VLC_STATUS_URL "http://update.videolan.org/vlc/" BUILD_CHANNEL "/status" UPDATE_OS_SUFFIX
+# define UPDATE_VLC_STATUS_URL "http://update.videolan.org/vlc/status" UPDATE_OS_SUFFIX
 #endif
-
 
 #define dialog_FatalWait( p_obj, psz_title, psz_fmt, ... ) \
     vlc_dialog_wait_question( p_obj, VLC_DIALOG_QUESTION_CRITICAL, "OK", NULL, \
@@ -98,15 +102,6 @@
 /*****************************************************************************
  * Update_t functions
  *****************************************************************************/
-
-struct m_info
-{
-	char* os;
-	char* os_ver; 
-	char* os_arch;
-	char* vlc_ver;
-} mi;
-
 
 #undef update_New
 /**
@@ -187,16 +182,6 @@ static void EmptyRelease( update_t *p_update )
     FREENULL( p_update->release.psz_desc );
 }
 
-<<<<<<< HEAD
-//TODO : Integrate mi with update.h structs
-bool fillmi()
-{
-    if( asprintf( &mi.vlc_ver , "%d.%d.%d.%d" , PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA) == -1 )
-    {
-        return false;
-    }
-
-=======
 struct m_info
 {
 	char* os;
@@ -206,24 +191,18 @@ struct m_info
 } mi;
 
 
-void fillmi()
+bool fillmi()
 {
-	char* s_buf;
-    asprintf(&s_buf,"%d.%d.%d.%d",PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA);
-    mi.vlc_ver = s_buf;
->>>>>>> parent of c051d7d... update.c | fixing issues with memory
+    if(asprintf(&mi.vlc_ver,"%d.%d.%d.%d",PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA)==-1)
+    {
+        return false;
+    }
     #ifdef _WIN32
         mi.os = "Windows";
         mi.os_arch = "32";
-
     #elif _WIN64
         mi.os = "Windows";
         mi.os_arch = "64";
-<<<<<<< HEAD
-
-=======
-    //FIXME : detect the real linux arch;
->>>>>>> parent of c051d7d... update.c | fixing issues with memory
     #elif __unix__
         mi.os = "Linux";
         mi.os_arch = "Linux";    
@@ -239,26 +218,12 @@ void fillmi()
         int osv_y = osv.dwMinorVersion;
         int osv_z = osv.dwBuildNumber;
         int osv_o = osv.dwPlatformId;
-<<<<<<< HEAD
-
-    	if( asprintf( &mi.os_ver, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o ) == -1 )
+    	if(asprintf(&mi.os_ver, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o)==-1)
         {
             return false;
         }
-
-=======
-    	asprintf(&s_buf, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o);
-    	mi.os_ver = s_buf;
->>>>>>> parent of c051d7d... update.c | fixing issues with memory
     #endif
-
-}
-
-void destroymi(){
-    free( mi.os );
-    free( mi.os_ver );
-    free( mi.os_arch );
-    free( mi.vlc_ver );
+    return true;
 }
 /**
  * Get the update file and parse it
@@ -269,36 +234,27 @@ void destroymi(){
  */
 static bool GetUpdateFile( update_t *p_update )
 {
+
     stream_t *p_stream = NULL;
     char *psz_version_line = NULL;
     char *psz_update_data = NULL;
 
-<<<<<<< HEAD
     char *s_url = NULL;
     if(fillmi() == false)
     {
-        mi.os = NULL;
-        mi.os_ver = NULL;
-        mi.os_arch = NULL;
-        mi.vlc_ver = NULL;
+        goto error;
     }
-
-    // TODO : detect clientIP
-    if( asprintf( &s_url , "http://update.videolan.org/vlc/%s/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s&ip=192.168.1.1" , BUILD_CHANNEL , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver ) == -1 )
+    
+    if(asprintf(&s_url , "http://update.videolan.org/vlc/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver) == -1)
     {
-        s_url = NULL;
+        goto error;
     }
     
     p_stream = vlc_stream_NewURL( p_update->p_libvlc, s_url );
-=======
-    char *s_update_url;
-    asprintf(&s_update_url , "http://update.videolan.org/vlc/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver);
-    p_stream = vlc_stream_NewURL( p_update->p_libvlc, s_update_url );
->>>>>>> parent of c051d7d... update.c | fixing issues with memory
     if( !p_stream )
     {
         msg_Err( p_update->p_libvlc, "Failed to open %s for reading",
-                 UPDATE_VLC_STATUS_URL );
+                 s_url );
         goto error;
     }
 
@@ -478,8 +434,6 @@ static bool GetUpdateFile( update_t *p_update )
         free( p_hash );
         free( psz_version_line );
         free( psz_update_data );
-        free( s_url );
-        destroymi();
         return true;
     }
 
@@ -488,11 +442,7 @@ error:
         vlc_stream_Delete( p_stream );
     free( psz_version_line );
     free( psz_update_data );
-<<<<<<< HEAD
     free( s_url );
-    destroymi();
-=======
->>>>>>> parent of c051d7d... update.c | fixing issues with memory
     return false;
 }
 
@@ -704,10 +654,11 @@ static void* update_DownloadReal( void *obj )
         goto end;
 
     msg_Dbg( p_udt, "Downloading Stream '%s'", p_update->release.psz_url );
+
     psz_size = size_str( l_size );
 
     p_dialog_id =
-        vlc_dialog_display_progress( p_udt, false, 0.0, _("Cancello"),
+        vlc_dialog_display_progress( p_udt, false, 0.0, _("Cancel"),
                                      ( "Downloading..."),
                                      _("%s\nDownloading... %s/%s %.1f%% done"),
                                      p_update->release.psz_url, "0.0", psz_size,
