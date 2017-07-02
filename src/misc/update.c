@@ -184,10 +184,10 @@ static void EmptyRelease( update_t *p_update )
 
 struct m_info
 {
-	char* os;
-	char* os_ver; 
-	char* os_arch;
-	char* vlc_ver;
+    char* os;
+    char* os_ver; 
+    char* os_arch;
+    char* vlc_ver;
 } mi;
 
 
@@ -221,8 +221,8 @@ bool fillmi()
         int osv_y = osv.dwMinorVersion;
         int osv_z = osv.dwBuildNumber;
         int osv_o = osv.dwPlatformId;
-    	
-    	if( asprintf( &mi.os_ver, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o ) == -1 )
+        
+        if( asprintf( &mi.os_ver, "%d.%d.%d.%d" , osv_x , osv_y , osv_z , osv_o ) == -1 )
         {
             return false;
         }
@@ -246,12 +246,15 @@ static bool GetUpdateFile( update_t *p_update )
     
     if( fillmi() == false )
     {
+        mi.vlc_ver = NULL;
+        mi.os_ver = NULL;
         goto error;
     }
     
     char *s_url = NULL;
     if( asprintf( &s_url , "http://update.videolan.org/vlc/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver ) == -1 )
     {
+        s_url = NULL;
         goto error;
     }
     
@@ -448,6 +451,8 @@ error:
     free( psz_version_line );
     free( psz_update_data );
     free( s_url );
+    free( mi.vlc_ver );
+    free( mi.os_ver )
     return false;
 }
 
