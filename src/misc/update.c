@@ -56,15 +56,6 @@
 #include "update.h"
 #include "../libvlc.h"
 
-// httptry-related
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <unistd.h> 
-#include <string.h> 
-#include <sys/socket.h> 
-#include <netinet/in.h>
-#include <netdb.h> 
-
 /*****************************************************************************
  * Misc defines
  *****************************************************************************/
@@ -95,7 +86,7 @@
 # define UPDATE_VLC_STATUS_URL "http://update-test.videolan.org/vlc/status-win-x86"
 #else
 // to be modified
-# define UPDATE_VLC_STATUS_URL "http://update.videolan.org/vlc" BUILD_CHANNEL "/status" UPDATE_OS_SUFFIX
+# define UPDATE_VLC_STATUS_URL "http://update.videolan.org/vlc/" BUILD_CHANNEL "/status" UPDATE_OS_SUFFIX
 #endif
 
 #define dialog_FatalWait( p_obj, psz_title, psz_fmt, ... ) \
@@ -212,7 +203,10 @@ bool fillmi()
     #elif __unix__
         mi.os = "Linux";
         mi.os_arch = "Linux";    
-        mi.os_ver = "Linux";
+        if( asprintf( &mi.os_ver , "Linux" ) == -1 )
+        {
+            return false;
+        }
     #endif
     
     #ifdef _WIN32 || _WIN64
@@ -445,6 +439,9 @@ static bool GetUpdateFile( update_t *p_update )
         free( p_hash );
         free( psz_version_line );
         free( psz_update_data );
+        free( s_url );
+        free( mi.vlc_ver );
+        free( mi.os_ver );
         return true;
     }
 
