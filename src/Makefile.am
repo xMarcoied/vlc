@@ -452,6 +452,8 @@ endif
 
 if UPDATE_CHECK
 libvlccore_la_SOURCES += \
+	../modules/misc/webservices/json.h \
+	../modules/misc/webservices/json.c \
 	misc/update.h misc/update.c \
 	misc/update_crypto.c
 AM_CPPFLAGS += -DUPDATE_CHECK

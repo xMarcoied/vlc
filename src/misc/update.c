@@ -55,6 +55,7 @@
 #endif
 #include "update.h"
 #include "../libvlc.h"
+#include "../../modules/misc/webservices/json.h"
 
 /*****************************************************************************
  * Misc defines
