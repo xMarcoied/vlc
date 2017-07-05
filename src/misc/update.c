@@ -235,6 +235,15 @@ bool fillmi()
  * \param p_update pointer to update struct
  * \return true if the update is valid and authenticated
  */
+static json_value * jsongetbyname( json_value *object, const char *psz_name )
+{
+    if ( object->type != json_object ) return NULL;
+    for ( unsigned int i=0; i < object->u.object.length; i++ )
+        if ( strcmp( object->u.object.values[i].name, psz_name ) == 0 )
+            return object->u.object.values[i].value;
+    return NULL;
+}
+
 static bool GetUpdateFile( update_t *p_update )
 {
 
@@ -300,9 +309,9 @@ static bool GetUpdateFile( update_t *p_update )
     }
     /* version number */
     size_t i_len;
-
+    json_value *json_vlc_ver = jsongetbyname( psz_update_data_parser, "vlc_ver" );
     p_update->release.i_extra = 0;
-    int ret = sscanf( psz_update_data_parser->u.object.values[6].value->u.string.ptr, "%i.%i.%i.%i",
+    int ret = sscanf( json_vlc_ver->u.string.ptr, "%i.%i.%i.%i",
                     &p_update->release.i_major, &p_update->release.i_minor,
                     &p_update->release.i_revision, &p_update->release.i_extra);
     if( ret != 3 && ret != 4 )
@@ -312,7 +321,8 @@ static bool GetUpdateFile( update_t *p_update )
     }
 
     /* URL */
-    i_len = strlen(psz_update_data_parser->u.object.values[7].value->u.string.ptr);
+    json_value *json_url = jsongetbyname( psz_update_data_parser, "url" );
+    i_len = strlen(json_url->u.string.ptr);
     if( i_len == 0 )
     {
         msg_Err( p_update->p_libvlc, "Update file %s is corrupted: URL missing",
@@ -323,12 +333,12 @@ static bool GetUpdateFile( update_t *p_update )
 
     if( !(p_update->release.psz_url = malloc( i_len + 1)) )
         goto error;
-    strncpy( p_update->release.psz_url,
-    psz_update_data_parser->u.object.values[7].value->u.string.ptr, i_len );
+    strncpy( p_update->release.psz_url, json_url->u.string.ptr, i_len );
     p_update->release.psz_url[i_len] = '\0';
 
     /* Remaining data : description */
-    i_len = strlen( psz_update_data_parser->u.object.values[9].value->u.string.ptr );
+    json_value *json_desc = jsongetbyname( psz_update_data_parser, "desc" );
+    i_len = strlen(json_desc->u.string.ptr);
     if( i_len == 0 )
     {
         msg_Err( p_update->p_libvlc,
@@ -339,8 +349,7 @@ static bool GetUpdateFile( update_t *p_update )
 
     if( !(p_update->release.psz_desc = malloc( i_len + 1)) )
         goto error;
-    strncpy( p_update->release.psz_desc,
-    psz_update_data_parser->u.object.values[9].value->u.string.ptr, i_len );
+    strncpy( p_update->release.psz_desc, json_desc->u.string.ptr, i_len );
     p_update->release.psz_desc[i_len] = '\0';
 
     /* Now that we know the status is valid, we must download its signature
