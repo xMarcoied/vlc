@@ -287,20 +287,22 @@ static bool GetUpdateFile( update_t *p_update )
     vlc_stream_Delete( p_stream );
     p_stream = NULL;
 
-    /* first line : version number */
-    char *psz_update_data_parser = psz_update_data;
-    size_t i_len = strcspn( psz_update_data, "\r\n" );
-    psz_update_data_parser += i_len;
-    while( *psz_update_data_parser == '\r' || *psz_update_data_parser == '\n' )
-        psz_update_data_parser++;
-
-    if( !(psz_version_line = malloc( i_len + 1)) )
+    // JSON Parsing
+    // TODO : get json by name function
+    json_settings settings;
+    char psz_error[128];
+    memset (&settings, 0, sizeof (json_settings));
+    json_value *psz_update_data_parser = json_parse_ex( &settings, psz_update_data, psz_error );
+    if ( psz_update_data_parser == NULL )
+    {
+        msg_Warn( p_update->p_libvlc, "Can't parse json data: %s", psz_error );
         goto error;
-    strncpy( psz_version_line, psz_update_data, i_len );
-    psz_version_line[i_len] = '\0';
+    }
+    /* version number */
+    size_t i_len;
 
     p_update->release.i_extra = 0;
-    int ret = sscanf( psz_version_line, "%i.%i.%i.%i",
+    int ret = sscanf( psz_update_data_parser->u.object.values[6].value->u.string.ptr, "%i.%i.%i.%i",
                     &p_update->release.i_major, &p_update->release.i_minor,
                     &p_update->release.i_revision, &p_update->release.i_extra);
     if( ret != 3 && ret != 4 )
@@ -309,8 +311,8 @@ static bool GetUpdateFile( update_t *p_update )
             goto error;
     }
 
-    /* second line : URL */
-    i_len = strcspn( psz_update_data_parser, "\r\n" );
+    /* URL */
+    i_len = strlen(psz_update_data_parser->u.object.values[7].value->u.string.ptr);
     if( i_len == 0 )
     {
         msg_Err( p_update->p_libvlc, "Update file %s is corrupted: URL missing",
@@ -321,15 +323,12 @@ static bool GetUpdateFile( update_t *p_update )
 
     if( !(p_update->release.psz_url = malloc( i_len + 1)) )
         goto error;
-    strncpy( p_update->release.psz_url, psz_update_data_parser, i_len );
+    strncpy( p_update->release.psz_url,
+    psz_update_data_parser->u.object.values[7].value->u.string.ptr, i_len );
     p_update->release.psz_url[i_len] = '\0';
 
-    psz_update_data_parser += i_len;
-    while( *psz_update_data_parser == '\r' || *psz_update_data_parser == '\n' )
-        psz_update_data_parser++;
-
     /* Remaining data : description */
-    i_len = strlen( psz_update_data_parser );
+    i_len = strlen( psz_update_data_parser->u.object.values[9].value->u.string.ptr );
     if( i_len == 0 )
     {
         msg_Err( p_update->p_libvlc,
@@ -340,7 +339,8 @@ static bool GetUpdateFile( update_t *p_update )
 
     if( !(p_update->release.psz_desc = malloc( i_len + 1)) )
         goto error;
-    strncpy( p_update->release.psz_desc, psz_update_data_parser, i_len );
+    strncpy( p_update->release.psz_desc,
+    psz_update_data_parser->u.object.values[9].value->u.string.ptr, i_len );
     p_update->release.psz_desc[i_len] = '\0';
 
     /* Now that we know the status is valid, we must download its signature
@@ -438,7 +438,6 @@ static bool GetUpdateFile( update_t *p_update )
     {
         msg_Info( p_update->p_libvlc, "Status file authenticated" );
         free( p_hash );
-        free( psz_version_line );
         free( psz_update_data );
         free( s_url );
         free( mi.vlc_ver );
@@ -449,8 +448,8 @@ static bool GetUpdateFile( update_t *p_update )
 error:
     if( p_stream )
         vlc_stream_Delete( p_stream );
-    free( psz_version_line );
-    free( psz_update_data );
+    if ( psz_update_data_parser )
+        json_value_free( psz_update_data_parser );
     free( s_url );
     free( mi.vlc_ver );
     free( mi.os_ver );
