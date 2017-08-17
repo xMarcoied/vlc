@@ -259,7 +259,7 @@ static bool GetUpdateFile( update_t *p_update )
         goto error;
     }
     
-    if( asprintf( &s_url , "http://update.videolan.org/vlc/%s/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , BUILD_CHANNEL , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver ) == -1 )
+    if( asprintf( &s_url , "http://update.videolan.org/u/vlc/%s/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , BUILD_CHANNEL , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver ) == -1 )
     {
         s_url = NULL;
         goto error;
@@ -355,6 +355,16 @@ static bool GetUpdateFile( update_t *p_update )
     /* Now that we know the status is valid, we must download its signature
      * to authenticate it */
     signature_packet_t sign;
+    
+    json_value *json_release_id = jsongetbyname( psz_update_data_parser, "id" );
+    int release_id = json_release_id->u.integer;
+
+    if( asprintf( &signature_url , "http://update.videolan.org/u/vlc/%s/signature?id=%d" , BUILD_CHANNEL ,release_id ) == -1 )
+    {
+        signature_url = NULL;
+        goto error;
+    }
+
     if( download_signature( VLC_OBJECT( p_update->p_libvlc ), &sign,
             UPDATE_VLC_STATUS_URL ) != VLC_SUCCESS )
     {
