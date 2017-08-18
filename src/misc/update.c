@@ -358,7 +358,8 @@ static bool GetUpdateFile( update_t *p_update )
     
     json_value *json_release_id = jsongetbyname( psz_update_data_parser, "id" );
     int release_id = json_release_id->u.integer;
-
+    
+    char *signature_url = NULL;
     if( asprintf( &signature_url , "http://update.videolan.org/u/vlc/%s/signature?id=%d" , BUILD_CHANNEL ,release_id ) == -1 )
     {
         signature_url = NULL;
@@ -428,6 +429,14 @@ static bool GetUpdateFile( update_t *p_update )
             msg_Err( p_update->p_libvlc, "Key signature invalid !" );
             goto error;
         }
+    }
+
+    // remove release_id field from status
+    i_len = strcspn(psz_update_data , ",");
+    if( asprintf( &psz_update_data , "{%.*s", strlen(psz_update_data), psz_update_data + i_len + 1 ) == -1 )
+    {
+        msg_Warn( p_update->p_libvlc, "Can't find the release id" );
+        goto error;
     }
 
     uint8_t *p_hash = hash_from_text( psz_update_data, &sign );
