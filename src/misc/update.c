@@ -188,6 +188,7 @@ struct m_info
 
 bool fillmi()
 {
+    int ArchIdentifier = sizeof(void *) * 8;
     if( asprintf( &mi.vlc_ver,"%d.%d.%d.%d", PACKAGE_VERSION_MAJOR , PACKAGE_VERSION_MINOR , PACKAGE_VERSION_REVISION , PACKAGE_VERSION_EXTRA) == -1 )
     {
         return false;
@@ -203,7 +204,10 @@ bool fillmi()
     
     #elif __unix__
         mi.os = "Linux";
-        mi.os_arch = "Linux";    
+        if(ArchIdentifier == 64)
+            mi.os_arch = "64";
+        else
+            mi.os_arch = "32";
         if( asprintf( &mi.os_ver , "Linux" ) == -1 )
         {
             return false;
