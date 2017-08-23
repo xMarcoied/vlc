@@ -263,7 +263,7 @@ static bool GetUpdateFile( update_t *p_update )
         goto error;
     }
     
-    if( asprintf( &s_url , "http://update.videolan.org/u/vlc/%s/update?os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , BUILD_CHANNEL , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver ) == -1 )
+    if( asprintf( &s_url , "http://update.videolan.org/u/update?product=vlc&channel=%s&os=%s&os_ver=%s&os_arch=%s&vlc_ver=%s" , BUILD_CHANNEL , mi.os , mi.os_ver , mi.os_arch , mi.vlc_ver ) == -1 )
     {
         s_url = NULL;
         goto error;
@@ -364,7 +364,7 @@ static bool GetUpdateFile( update_t *p_update )
     int release_id = json_release_id->u.integer;
     
     char *signature_url = NULL;
-    if( asprintf( &signature_url , "http://update.videolan.org/u/vlc/%s/signature?id=%d" , BUILD_CHANNEL ,release_id ) == -1 )
+    if( asprintf( &signature_url , "http://update.videolan.org/u/signature?id=%d" , release_id ) == -1 )
     {
         signature_url = NULL;
         goto error;
