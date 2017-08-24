@@ -208,7 +208,8 @@ bool fillmi()
             mi.os_arch = "64";
         else
             mi.os_arch = "32";
-        if( asprintf( &mi.os_ver , "Linux" ) == -1 )
+        // Leave the OS Version empty at Linux OS
+        if( asprintf( &mi.os_ver , "" ) == -1 )
         {
             return false;
         }
