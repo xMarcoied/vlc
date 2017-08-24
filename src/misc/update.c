@@ -63,14 +63,17 @@
 
 /*
  * Here is the format of these "status files" :
- * First line is the last version: "X.Y.Z.E" where:
+ * (The status file consist of many JSON fields)
+ * "id" is the release id
+ * "product_ver" is the last version: "X.Y.Z.E" where:
  *      * X is the major number
  *      * Y is the minor number
  *      * Z is the revision number
  *      * .E is an OPTIONAL extra number
  *      * IE "1.2.0" or "1.1.10.1"
- * Second line is a url of the binary for this last version
- * Remaining text is a required description of the update
+ * "url" is a url of the binary for this last version
+ * "title" is the title of this release
+ * "desc" is the full description of the update
  */
 
 #define BUILD_CHANNEL "stable" 
